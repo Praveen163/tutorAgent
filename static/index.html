@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI Tutor Chat</title>
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@3.4.1/dist/tailwind.min.css" rel="stylesheet">
+  <link rel="icon" href="https://cdn-icons-png.flaticon.com/512/4712/4712035.png" type="image/png">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+
+  <style>
+    :root {
+      --bg: #f8fafc;
+      --bg-glass: rgba(255,255,255,0.35);
+      --bubble-user: linear-gradient(135deg, #6366f1 0%, #2563eb 100%);
+      --bubble-ai: rgba(255,255,255,0.7);
+      --text-main: #222;
+      --text-invert: #fff;
+      --header-bg: linear-gradient(90deg, #6366f1 0%, #2563eb 100%);
+      --footer-bg: linear-gradient(90deg, #22223b 0%, #4a4e69 100%);
+    }
+    .dark {
+      --bg: #181a20;
+      --bg-glass: rgba(24,26,32,0.7);
+      --bubble-user: linear-gradient(135deg, #6366f1 0%, #2563eb 100%);
+      --bubble-ai: rgba(36,37,42,0.95);
+      --text-main: #f3f4f6;
+      --text-invert: #181a20;
+      --header-bg: linear-gradient(90deg, #232946 0%, #6366f1 100%);
+      --footer-bg: linear-gradient(90deg, #232946 0%, #6366f1 100%);
+    }
+    body {
+      background: var(--bg);
+      min-height: 100vh;
+      font-family: 'Inter', 'Segoe UI', Arial, sans-serif;
+      color: var(--text-main);
+      transition: background 0.3s, color 0.3s;
+    }
+    .glass {
+      background: var(--bg-glass);
+      box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.18);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border-radius: 24px;
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      transition: background 0.3s;
+    }
+    .header-glass {
+      background: var(--header-bg);
+      box-shadow: 0 4px 24px 0 rgba(31, 38, 135, 0.10);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      border-bottom: 1.5px solid rgba(255,255,255,0.10);
+    }
+    .chat-scroll { scroll-behavior: smooth; }
+    .chat-bubble { animation: fadeInBubble 0.35s cubic-bezier(.4,1.7,.7,1); }
+    @keyframes fadeInBubble { from { opacity: 0; transform: translateY(20px) scale(0.98);} to { opacity: 1; transform: none; } }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px);} to { opacity: 1; transform: none; } }
+    .avatar {
+      border: 2px solid #fff;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+      background: linear-gradient(135deg, #e0e7ef 0%, #f8fafc 100%);
+    }
+    .send-btn {
+      background: linear-gradient(90deg, #6366f1 0%, #2563eb 100%);
+      transition: transform 0.1s, box-shadow 0.1s;
+      box-shadow: 0 2px 8px rgba(99,102,241,0.12);
+    }
+    .send-btn:hover {
+      transform: translateY(-2px) scale(1.04);
+      box-shadow: 0 4px 16px rgba(99,102,241,0.18);
+      background: linear-gradient(90deg, #2563eb 0%, #6366f1 100%);
+    }
+    .bubble-user {
+      background: linear-gradient(135deg, #6366f1 0%, #2563eb 100%);
+      color: var(--text-invert);
+      border-bottom-right-radius: 0.5rem !important;
+      box-shadow: 0 4px 16px rgba(99,102,241,0.13);
+      border: 1.5px solid #6366f1;
+      position: relative;
+    }
+    .bubble-ai {
+      background: var(--bubble-ai);
+      color: var(--text-main);
+      border-bottom-left-radius: 0.5rem !important;
+      box-shadow: 0 4px 16px rgba(31,41,55,0.10);
+      border: 1.5px solid #232946;
+      position: relative;
+    }
+    .dark .bubble-ai {
+      background: linear-gradient(135deg, #232946 0%, #232946 100%);
+      color: #f3f4f6;
+    }
+    .dark .bubble-user {
+      background: linear-gradient(135deg, #6366f1 0%, #2563eb 100%);
+      color: #fff;
+    }
+    .bubble-timestamp {
+      display: block;
+      font-size: 0.7em;
+      color: #a0aec0;
+      text-align: right;
+      opacity: 0.7;
+    }
+    .markdown-body {
+      font-size: 1rem;
+      line-height: 1.6;
+      word-break: break-word;
+    }
+    .markdown-body strong { font-weight: bold; color: #6366f1; }
+    .markdown-body em { color: #2563eb; }
+    .markdown-body code {
+      background: #f3f4f6;
+      color: #e94560;
+      border-radius: 4px;
+      padding: 2px 6px;
+      font-size: 0.95em;
+    }
+    .dark .markdown-body code {
+      background: #232946;
+      color: #f3f4f6;
+    }
+    .markdown-body pre {
+      background: #23294622;
+      color: #e94560;
+      border-radius: 8px;
+      padding: 10px;
+      overflow-x: auto;
+    }
+    .dark .markdown-body pre {
+      background: #181a20;
+      color: #f3f4f6;
+    }
+    .markdown-body ul, .markdown-body ol {
+      margin-left: 1.2em;
+      margin-bottom: 0.5em;
+    }
+    .markdown-body li {
+      margin-bottom: 0.2em;
+    }
+    .dark .bubble-ai, .dark .bubble-user {
+      border: 1px solid #232946;
+    }
+    .dark .markdown-body code, .dark .markdown-body pre {
+      background: #181a20;
+      color: #f3f4f6;
+    }
+    /* Input fixes */
+    #chat-input {
+      color: #fff;
+    }
+    .dark #chat-input {
+      color: #f3f4f6;
+    }
+    #chat-input::placeholder {
+      color: #7b8794;
+      opacity: 1;
+    }
+    .dark #chat-input::placeholder {
+      color: #cbd5e1;
+    }
+    /* Header button hover/active */
+    .header-glass button:hover, .header-glass button:focus {
+      background: rgba(255,255,255,0.35) !important;
+      box-shadow: 0 2px 8px rgba(99,102,241,0.10);
+    }
+    .header-glass button:active {
+      background: rgba(99,102,241,0.18) !important;
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col">
+  <header class="header-glass shadow-lg py-2 px-2 sm:px-4 flex items-center justify-between sticky top-0 z-20" style="transition: background 0.3s;">
+    <div class="flex items-center gap-3">
+      <img src="https://cdn-icons-png.flaticon.com/512/4712/4712035.png" alt="AI Tutor" class="w-10 h-10 rounded-full shadow-md">
+      <div>
+        <h1 class="text-2xl sm:text-3xl font-bold text-white tracking-wide drop-shadow">AI Tutor Chat</h1>
+        <span class="text-white/80 text-xs sm:text-sm block mt-1">Your personal learning assistant</span>
+      </div>
+    </div>
+    <div class="flex items-center gap-2">
+      <button id="reset-chat" class="p-2 rounded-full bg-white/20 hover:bg-white/40 transition flex items-center justify-center" title="Reset chat">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582M20 20v-5h-.581M5.635 19A9 9 0 1021 12.35"/></svg>
+      </button>
+      <button id="theme-toggle" class="p-2 rounded-full bg-white/20 hover:bg-white/40 transition flex items-center justify-center" title="Toggle dark mode">
+        <svg id="theme-icon" xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m8.66-13.66l-.71.71M4.05 19.07l-.71.71M21 12h-1M4 12H3m16.66 6.66l-.71-.71M4.05 4.93l-.71-.71M16 12a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+      </button>
+    </div>
+  </header>
+  <main class="flex-1 flex flex-col overflow-hidden">
+    <div id="chat-container" class="flex-1 overflow-y-auto px-1 sm:px-2 py-3 sm:py-4 sm:px-8 chat-scroll glass" style="max-height: 70vh;"></div>
+    <form id="chat-form" class="w-full flex items-center gap-2 glass p-2 sm:p-4 border-t border-gray-200 sticky bottom-0 z-10" style="backdrop-filter: blur(10px);">
+      <div class="flex items-center w-full bg-white/70 dark:bg-[#232946] rounded-full shadow-md px-2 sm:px-4 py-1 sm:py-2 border border-gray-200 focus-within:ring-2 focus-within:ring-blue-400 transition">
+        <button type="button" tabindex="-1" class="p-2 text-gray-400 hover:text-blue-500 focus:outline-none">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828L18 9.828M7 7h.01"/></svg>
+        </button>
+        <input id="chat-input" type="text" placeholder="Type your message..." autocomplete="off" class="flex-1 bg-transparent px-2 py-2 focus:outline-none text-base" required>
+        <button id="input-reset-chat" type="button" class="ml-1 p-2 rounded-full bg-white/20 hover:bg-white/40 transition flex items-center justify-center" title="Reset chat">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582M20 20v-5h-.581M5.635 19A9 9 0 1021 12.35"/></svg>
+        </button>
+        <button type="submit" class="send-btn ml-2 flex items-center justify-center rounded-full shadow transition w-10 h-10 sm:w-auto sm:h-auto px-0 sm:px-6 py-0 sm:py-2 text-white font-semibold">
+          <span class="hidden sm:inline">Send</span>
+          <svg class="sm:hidden w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+        </button>
+      </div>
+    </form>
+  </main>
+  <footer class="text-center py-4 text-xs" style="background: var(--footer-bg); color: #fff; transition: background 0.3s;">
+    <div class="flex flex-col items-center gap-2">
+      <div class="flex flex-wrap gap-3 justify-center">
+        <a href="https://linkedin.com/in/praveen-nnn" class="hover:text-blue-400 transition flex items-center gap-1" title="LinkedIn" target="_blank" rel="noopener">
+          <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M19 0h-14c-2.76 0-5 2.24-5 5v14c0 2.76 2.24 5 5 5h14c2.76 0 5-2.24 5-5v-14c0-2.76-2.24-5-5-5zm-11 19h-3v-10h3v10zm-1.5-11.27c-.97 0-1.75-.79-1.75-1.76s.78-1.76 1.75-1.76 1.75.79 1.75 1.76-.78 1.76-1.75 1.76zm15.5 11.27h-3v-5.6c0-1.34-.03-3.07-1.87-3.07-1.87 0-2.16 1.46-2.16 2.97v5.7h-3v-10h2.88v1.36h.04c.4-.75 1.38-1.54 2.84-1.54 3.04 0 3.6 2 3.6 4.59v5.59z"/></svg>
+          <span class="hidden sm:inline">LinkedIn</span>
+        </a>
+        <a href="https://drive.google.com/file/d/1dH5SP7uIhSgrR1qajl-0uR2BEnraNvCd/preview" class="hover:text-green-400 transition flex items-center gap-1" title="Resume" target="_blank" rel="noopener">
+          <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-7V3.5L18.5 9H13z"/></svg>
+          <span class="hidden sm:inline">Resume</span>
+        </a>
+        <a href="https://nyapata.com/praveen" class="hover:text-pink-400 transition flex items-center gap-1" title="Portfolio" target="_blank" rel="noopener">
+          <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
+          <span class="hidden sm:inline">Portfolio</span>
+        </a>
+      </div>
+      <span>&copy; 2025 AI Tutor. Developed with <span class="text-pink-400">&#10084;</span> by Praveen.</span>
+    </div>
+  </footer>
+  <script>
+    const chatContainer = document.getElementById('chat-container');
+    const chatForm = document.getElementById('chat-form');
+    const chatInput = document.getElementById('chat-input');
+    let history = [];
+
+    function addMessage(message, from = 'user') {
+      const isUser = from === 'user';
+      const bubble = document.createElement('div');
+      bubble.className = `chat-bubble flex items-end gap-2 mb-4 ${isUser ? 'justify-end' : 'justify-start'}`;
+      const now = new Date();
+      const timeString = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      bubble.innerHTML = `
+        ${!isUser ? `<img src='https://cdn-icons-png.flaticon.com/512/4712/4712035.png' class='w-8 h-8 rounded-full shadow avatar' alt='AI'>` : ''}
+        <div class="max-w-xs sm:max-w-md px-4 py-1.5 rounded-2xl shadow ${isUser ? 'bubble-user' : 'bubble-ai'} markdown-body flex items-end">
+          <span class="whitespace-pre-line">${marked.parse(message)}</span>
+          <span class="bubble-timestamp">${timeString}</span>
+        </div>
+        ${isUser ? `<img src='https://randomuser.me/api/portraits/men/32.jpg' class='w-8 h-8 rounded-full shadow avatar' alt='You'>` : ''}
+      `;
+      chatContainer.appendChild(bubble);
+      chatContainer.scrollTop = chatContainer.scrollHeight;
+    }
+
+    chatForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const message = chatInput.value.trim();
+      if (!message) return;
+      addMessage(message, 'user');
+      history.push({ role: 'user', content: message });
+      chatInput.value = '';
+      chatInput.focus();
+      // Show typing indicator
+      const typing = document.createElement('div');
+      typing.className = 'chat-bubble flex items-end gap-2 mb-4 justify-start';
+      typing.innerHTML = `
+        <img src='https://cdn-icons-png.flaticon.com/512/4712/4712035.png' class='w-8 h-8 rounded-full shadow avatar' alt='AI'>
+        <div class="max-w-xs sm:max-w-md px-4 py-2 rounded-2xl shadow bubble-ai flex items-center gap-2">
+          <span class="animate-pulse">AI is typing...</span>
+        </div>
+      `;
+      chatContainer.appendChild(typing);
+      chatContainer.scrollTop = chatContainer.scrollHeight;
+      try {
+        const res = await fetch('/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message, history })
+        });
+        const data = await res.json();
+        chatContainer.removeChild(typing);
+        addMessage(data.response, 'ai');
+        history.push({ role: 'ai', content: data.response });
+      } catch (err) {
+        chatContainer.removeChild(typing);
+        addMessage('Sorry, there was an error. Please try again.', 'ai');
+      }
+    });
+
+    // Dark mode toggle
+    const themeToggle = document.getElementById('theme-toggle');
+    const themeIcon = document.getElementById('theme-icon');
+    const resetChatBtn = document.getElementById('reset-chat');
+    function setTheme(dark) {
+      if (dark) {
+        document.documentElement.classList.add('dark');
+        themeIcon.innerHTML = `<path stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M21.752 15.002A9.718 9.718 0 0112 21.75c-5.385 0-9.75-4.365-9.75-9.75 0-4.1 2.47-7.625 6.002-9.248a.75.75 0 01.998.927A7.501 7.501 0 0019.5 12c0 1.61-.508 3.104-1.377 4.335a.75.75 0 01.927.998z'/>`;
+      } else {
+        document.documentElement.classList.remove('dark');
+        themeIcon.innerHTML = `<path stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M12 3v1m0 16v1m8.66-13.66l-.71.71M4.05 19.07l-.71.71M21 12h-1M4 12H3m16.66 6.66l-.71-.71M4.05 4.93l-.71-.71M16 12a4 4 0 11-8 0 4 4 0 018 0z'/>`;
+      }
+      localStorage.setItem('theme', dark ? 'dark' : 'light');
+    }
+    themeToggle.addEventListener('click', () => {
+      const isDark = !document.documentElement.classList.contains('dark');
+      setTheme(isDark);
+    });
+    // Reset chat functionality
+    resetChatBtn.addEventListener('click', () => {
+      chatContainer.innerHTML = '';
+      history = [];
+      setTimeout(() => {
+        addMessage('Hello! I\'m your AI Tutor. How can I help you today?', 'ai');
+      }, 400);
+    });
+    // Input bar reset chat functionality
+    const inputResetChatBtn = document.getElementById('input-reset-chat');
+    inputResetChatBtn.addEventListener('click', () => {
+      chatContainer.innerHTML = '';
+      history = [];
+      setTimeout(() => {
+        addMessage('Hello! I\'m your AI Tutor. How can I help you today?', 'ai');
+      }, 400);
+    });
+    // On load, set theme from localStorage or system
+    window.addEventListener('DOMContentLoaded', () => {
+      const saved = localStorage.getItem('theme');
+      if (saved === 'dark' || (!saved && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+        setTheme(true);
+      } else {
+        setTheme(false);
+      }
+      setTimeout(() => {
+        addMessage('Hello! I\'m your AI Tutor. How can I help you today?', 'ai');
+      }, 400);
+    });
+  </script>
+</body>
+</html> 
